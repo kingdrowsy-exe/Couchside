@@ -65,7 +65,7 @@ export default function MediaPlayer({
   const trackRef = useRef<HTMLDivElement | null>(null);
   const hideTimer = useRef<number | null>(null);
   const baseVolume = live ? LIVE_VOLUME : VOD_VOLUME;
-  const { error, playing: started } = useHlsVideo(videoRef, src, isHls);
+  const { error, playing: started } = useHlsVideo(videoRef, src, isHls, live);
 
   const [paused, setPaused] = useState(true);
   const [muted, setMuted] = useState(false);

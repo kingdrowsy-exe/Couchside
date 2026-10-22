@@ -1,10 +1,12 @@
 import { RefObject, useEffect, useState } from "react";
 import Hls from "hls.js";
+import { LIVE_HLS_CONFIG, stallResumePosition } from "../player/liveHls.js";
 
 export function useHlsVideo(
   videoRef: RefObject<HTMLVideoElement | null>,
   src: string | undefined,
   isHls: boolean,
+  live = false,
 ) {
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -29,9 +31,23 @@ export function useHlsVideo(
     video.addEventListener("error", onVideoError);
 
     if (isHls && Hls.isSupported()) {
-      hls = new Hls();
+      if (live) video.playbackRate = 1;
+      hls = new Hls(live ? LIVE_HLS_CONFIG : undefined);
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
+        // Live stalls resume at the current playhead. startLoad() with no
+        // position, and recoverMediaError(), both seek and make the picture jump.
+        if (live) {
+          if (!recoveryAttempted) {
+            recoveryAttempted = true;
+            hls?.startLoad(stallResumePosition(video.currentTime));
+            return;
+          }
+          setError(
+            `Stream failed to load (${data.details}). The provider may be unreachable or blocking this connection.`,
+          );
+          return;
+        }
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
             if (!recoveryAttempted) {
@@ -70,7 +86,7 @@ export function useHlsVideo(
       video.removeEventListener("error", onVideoError);
       hls?.destroy();
     };
-  }, [videoRef, src, isHls]);
+  }, [videoRef, src, isHls, live]);
 
   return { error, playing };
 }
