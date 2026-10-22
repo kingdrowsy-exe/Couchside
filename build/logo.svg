@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Couchside">
+  <defs>
+    <mask id="play">
+      <rect width="32" height="32" fill="white"/>
+      <path fill="black" d="M12.2 9.2 L19.6 12.8 L12.2 16.4 Z"/>
+    </mask>
+  </defs>
+  <g fill="#ff6410" mask="url(#play)">
+    <path d="M6 6h20v10H6z"/>
+    <path d="M2 12h6v12H2z"/>
+    <path d="M24 12h6v12h-6z"/>
+    <path d="M4 16h24v8H4z"/>
+    <path d="M5 26h4v4H5z"/>
+    <path d="M23 26h4v4h-4z"/>
+  </g>
+</svg>
