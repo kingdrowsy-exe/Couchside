@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in Couchside is broken or confusing
+title: "[Bug]: "
+labels: []
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Couchside did instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Couchside version
+      description: Shown under the logo and on the Settings page, for example 1.0.0.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Settings
+        - Live TV
+        - On Demand
+        - Sports
+        - Search
+        - Installer
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Anything else
+      description: Do not paste passwords, tokens, or stream URLs.
+    validations:
+      required: false

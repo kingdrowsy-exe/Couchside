@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest a change to Couchside
+title: "[Feature]: "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like Couchside to do?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Live TV
+        - On Demand
+        - Sports
+        - Search
+        - Settings
+        - Installer
+        - Other
+    validations:
+      required: false
