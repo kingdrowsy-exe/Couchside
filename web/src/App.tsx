@@ -45,7 +45,7 @@ export default function App() {
     <div className="shell">
       <nav className={`rail ${folded ? "is-folded" : ""}`} aria-label="Primary" onMouseLeave={() => setFolded(false)}>
         <div className="rail__in">
-          <NavLink to="/ondemand" className="rail__brand" aria-label="Unified Media Hub" onClick={fold}>
+          <NavLink to="/ondemand" className="rail__brand" aria-label="Couchside" onClick={fold}>
             <img src="/logo-mark.png" alt="" />
           </NavLink>
           {NAV.map((item) => (

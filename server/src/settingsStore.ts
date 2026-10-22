@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getSecretBox } from "./secretBox.js";
+
+const MAGIC = Buffer.from("CSDH1\n");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -74,6 +77,23 @@ export function clearSettingsCache() {
 }
 
 function parseSettings(raw: Buffer): Settings {
+  if (raw.length >= MAGIC.length && raw.subarray(0, MAGIC.length).equals(MAGIC)) {
+    const box = getSecretBox();
+    if (!box) {
+      throw new SettingsReadError("Saved settings are encrypted, but this system can't decrypt them.");
+    }
+    let plain: string;
+    try {
+      plain = box.decrypt(raw.subarray(MAGIC.length));
+    } catch {
+      throw new SettingsReadError("Saved settings couldn't be decrypted. They were left in place.");
+    }
+    try {
+      return JSON.parse(plain) as Settings;
+    } catch {
+      throw new SettingsReadError("Saved settings couldn't be read. They were left in place.");
+    }
+  }
   const text = raw.toString("utf8").replace(/^\uFEFF/, "");
   if (!text.trim()) throw new SettingsReadError("Saved settings file is empty.");
   try {
@@ -91,9 +111,16 @@ function readFromDisk(): Settings {
 
 function load(): Settings {
   if (cache) return cache;
+  const { settingsPath } = locations();
+  const existed = fs.existsSync(settingsPath);
+  let raw: Buffer | null = null;
   try {
-    cache = readFromDisk();
+    raw = existed ? fs.readFileSync(settingsPath) : null;
+    const legacyPlaintext = Boolean(raw && (raw.length < MAGIC.length || !raw.subarray(0, MAGIC.length).equals(MAGIC)));
+    cache = raw ? parseSettings(raw) : {};
     readError = null;
+    // Encrypt a copied plaintext file in this profile once. The legacy copy is a different path.
+    if (legacyPlaintext && raw && raw.length > 0 && getSecretBox()) persist();
   } catch (err) {
     // Don't cache a failed read. A later save starts fresh; until then every
     // status check reports the error and the damaged file stays on disk.
@@ -129,7 +156,10 @@ function edit(): Settings {
 function persist() {
   const { dataDir, settingsPath } = locations();
   fs.mkdirSync(dataDir, { recursive: true });
-  writeAtomic(settingsPath, Buffer.from(JSON.stringify(cache ?? {}, null, 2), "utf8"));
+  const plain = JSON.stringify(cache ?? {}, null, 2);
+  const box = getSecretBox();
+  const body = box ? Buffer.concat([MAGIC, box.encrypt(plain)]) : Buffer.from(plain, "utf8");
+  writeAtomic(settingsPath, body);
   readError = null;
 }
 

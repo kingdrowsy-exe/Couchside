@@ -1,8 +1,8 @@
 {
-  "name": "unified-media-hub-app",
+  "name": "couchside",
   "private": true,
-  "version": "3.15.0",
-  "description": "Installable Windows desktop app wrapping Unified Media Hub",
+  "version": "1.0.0",
+  "description": "Couchside, an all-in-one Windows player for Plex, Silo, MediaHub, and Xtream IPTV",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -28,8 +28,8 @@
     "rcedit": "^5.0.2"
   },
   "build": {
-    "appId": "com.kingdrowsy.unifiedmediahub",
-    "productName": "Unified Media Hub",
+    "appId": "com.kingdrowsy.couchside",
+    "productName": "Couchside",
     "directories": {
       "output": "release"
     },
@@ -45,6 +45,8 @@
       "signAndEditExecutable": false
     },
     "nsis": {
+      "artifactName": "Couchside-Setup-${version}.exe",
+      "shortcutName": "Couchside",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,

@@ -1,12 +1,17 @@
-import { app, BrowserWindow, Menu, screen } from "electron";
+import { app, BrowserWindow, Menu, safeStorage, screen } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { legacyUserDataPath, migrateUserData } from "./migrateUserData.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Electron otherwise names the userData folder after package.json's "name"
-// (unified-media-hub-app) rather than the product name people actually see.
-app.setName("Unified Media Hub");
+// No-op on Windows, where safeStorage uses DPAPI. On Linux without a keyring
+// it selects the basic_text backend so saved logins are still encrypted.
+safeStorage.setUsePlainTextEncryption(true);
+
+// Electron otherwise names the userData folder after package.json's "name".
+app.setName("Couchside");
+migrateUserData(legacyUserDataPath(app.getPath("appData")), app.getPath("userData"));
 
 // A fixed, uncommon port for the embedded server - distinct from the dev
 // project's 4000 so both can run side by side without colliding.
@@ -40,6 +45,7 @@ async function createWindow() {
     y: Math.round(area.y + (area.height - (height + TITLE_BAR_ALLOWANCE)) / 2),
     minWidth: 900,
     minHeight: 600,
+    title: "Couchside",
     backgroundColor: "#000000",
     autoHideMenuBar: true,
     icon: app.isPackaged ? path.join(process.resourcesPath, "icon.ico") : path.join(__dirname, "../build/icon.ico"),

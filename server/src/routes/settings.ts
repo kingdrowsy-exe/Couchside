@@ -49,7 +49,7 @@ async function validateEmby(baseUrl: string, username: string, password: string)
       "Content-Type": "application/json",
       Accept: "application/json",
       "X-Emby-Authorization":
-        'MediaBrowser Client="Unified Media Hub", Device="Unified Media Hub", DeviceId="unified-media-hub", Version="0.1.0"',
+        'MediaBrowser Client="Couchside", Device="Couchside", DeviceId="unified-media-hub", Version="1.0.0"',
     },
     body: JSON.stringify({ Username: username, Pw: password }),
   });

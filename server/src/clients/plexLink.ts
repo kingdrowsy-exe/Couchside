@@ -8,10 +8,10 @@ const dataDir = process.env.DATA_DIR ?? path.join(__dirname, "..", "..", "data")
 const clientIdPath = path.join(dataDir, "plex-client-id");
 
 const PLEX_HEADERS_BASE = {
-  "X-Plex-Product": "Unified Media Hub",
-  "X-Plex-Version": "0.1.0",
+  "X-Plex-Product": "Couchside",
+  "X-Plex-Version": "1.0.0",
   "X-Plex-Device": "Computer",
-  "X-Plex-Device-Name": "Unified Media Hub",
+  "X-Plex-Device-Name": "Couchside",
   "X-Plex-Platform": "Web",
   Accept: "application/json",
 };

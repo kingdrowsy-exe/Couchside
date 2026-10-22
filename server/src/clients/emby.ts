@@ -45,8 +45,9 @@ export function resetEmbySession() {
 
 // Emby (and Jellyfin, which shares this API) identifies API clients via this header on
 // every request, not just login - servers can use it to show "active sessions" per app.
+// DeviceId stays stable so a login saved by Unified Media Hub still works after the rebrand.
 const DEVICE_ID = "unified-media-hub";
-const AUTH_HEADER = `MediaBrowser Client="Unified Media Hub", Device="Unified Media Hub", DeviceId="${DEVICE_ID}", Version="0.1.0"`;
+const AUTH_HEADER = `MediaBrowser Client="Couchside", Device="Couchside", DeviceId="${DEVICE_ID}", Version="1.0.0"`;
 
 async function authenticate(): Promise<{ accessToken: string; userId: string }> {
   const emby = requireEmby();
