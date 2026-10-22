@@ -21,6 +21,7 @@ import {
   testConnection,
 } from "../api.js";
 import { EmbyIcon, PlexIcon, SiloIcon, TmdbIcon, TraktIcon, XtreamIcon } from "../components/ServiceIcons.js";
+import { settingsLoadView } from "./settingsLoad.js";
 import Icon from "../ui/Icon.js";
 
 type ServiceId = "plex" | "silo" | "emby" | "xtream" | "tmdb" | "trakt";
@@ -316,6 +317,7 @@ function Logo({ color, id, children }: { color: string; id: ServiceId; children:
 
 export default function Settings() {
   const [status, setStatus] = useState<SettingsStatus | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState<ServiceId | null>(null);
   const [plexLink, setPlexLink] = useState<PlexLinkState>({ phase: "idle" });
   const [traktLink, setTraktLink] = useState<TraktLinkState>({ phase: "idle" });
@@ -323,7 +325,14 @@ export default function Settings() {
   const traktPollRef = useRef<number | null>(null);
 
   function refreshStatus() {
-    fetchSettingsStatus().then(setStatus);
+    fetchSettingsStatus()
+      .then((next) => {
+        setStatus(next);
+        setLoadError(next.readError ?? null);
+      })
+      .catch((err: Error) => {
+        setLoadError(err.message || "Couldn't load settings.");
+      });
   }
 
   useEffect(() => {
@@ -402,8 +411,21 @@ export default function Settings() {
     }
   }
 
-  if (!status) {
-    return <div className="page status">Loading settings…</div>;
+  if (settingsLoadView(status, loadError) !== "ready") {
+    return (
+      <div className="page status">
+        {settingsLoadView(status, loadError) === "error" ? (
+          <>
+            <p>Couldn't load settings. {loadError}</p>
+            <button type="button" onClick={refreshStatus}>
+              Try again
+            </button>
+          </>
+        ) : (
+          "Loading settings…"
+        )}
+      </div>
+    );
   }
 
   const disconnect = (fn: () => Promise<unknown>) => () => {
@@ -664,6 +686,7 @@ export default function Settings() {
           {connectedCount} of 6 services connected
         </p>
       </header>
+      {loadError && <div className="notice">{loadError} Connecting a service replaces the damaged file.</div>}
 
       {groups.map((g) => (
         <section className="st__group" key={g.title}>

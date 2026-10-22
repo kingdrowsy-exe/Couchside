@@ -3,11 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// The packaged Electron app points this at Electron's per-user app-data folder
-// (writable regardless of where the app itself is installed); running the server
-// standalone falls back to a data/ folder next to the compiled server code.
-const dataDir = process.env.DATA_DIR ?? path.join(__dirname, "..", "data");
-const settingsPath = path.join(dataDir, "settings.json");
+
+function locations() {
+  // The packaged Electron app points this at Electron's per-user app-data folder
+  // (writable regardless of where the app itself is installed); running the server
+  // standalone falls back to a data/ folder next to the compiled server code.
+  const dataDir = process.env.DATA_DIR ?? path.join(__dirname, "..", "data");
+  return { dataDir, settingsPath: path.join(dataDir, "settings.json") };
+}
 
 export interface PlexSettings {
   baseUrl: string;
@@ -55,20 +58,79 @@ interface Settings {
 }
 
 let cache: Settings | null = null;
+let readError: string | null = null;
+
+export class SettingsReadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SettingsReadError";
+  }
+}
+
+/** Drop the in-memory copy so the next read hits disk. Used by tests. */
+export function clearSettingsCache() {
+  cache = null;
+  readError = null;
+}
+
+function parseSettings(raw: Buffer): Settings {
+  const text = raw.toString("utf8").replace(/^\uFEFF/, "");
+  if (!text.trim()) throw new SettingsReadError("Saved settings file is empty.");
+  try {
+    return JSON.parse(text) as Settings;
+  } catch {
+    throw new SettingsReadError("Saved settings couldn't be read. They were left in place.");
+  }
+}
+
+function readFromDisk(): Settings {
+  const { settingsPath } = locations();
+  if (!fs.existsSync(settingsPath)) return {};
+  return parseSettings(fs.readFileSync(settingsPath));
+}
 
 function load(): Settings {
   if (cache) return cache;
-  if (fs.existsSync(settingsPath)) {
-    cache = JSON.parse(fs.readFileSync(settingsPath, "utf-8")) as Settings;
-  } else {
+  try {
+    cache = readFromDisk();
+    readError = null;
+  } catch (err) {
+    // Don't cache a failed read. A later save starts fresh; until then every
+    // status check reports the error and the damaged file stays on disk.
+    readError = err instanceof Error ? err.message : "Saved settings couldn't be read.";
+    return {};
+  }
+  return cache;
+}
+
+function writeAtomic(file: string, body: Buffer) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  const fd = fs.openSync(tmp, "w");
+  try {
+    fs.writeSync(fd, body);
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.renameSync(tmp, file);
+}
+
+/** Cached settings for a write. A damaged file is replaced only when the user saves. */
+function edit(): Settings {
+  if (cache) return cache;
+  try {
+    cache = readFromDisk();
+  } catch {
     cache = {};
   }
   return cache;
 }
 
 function persist() {
+  const { dataDir, settingsPath } = locations();
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(settingsPath, JSON.stringify(cache, null, 2));
+  writeAtomic(settingsPath, Buffer.from(JSON.stringify(cache ?? {}, null, 2), "utf8"));
+  readError = null;
 }
 
 export const settingsStore = {
@@ -76,72 +138,72 @@ export const settingsStore = {
     return load().plex;
   },
   setPlex(plex: PlexSettings) {
-    load().plex = plex;
+    edit().plex = plex;
     persist();
   },
   clearPlex() {
-    delete load().plex;
+    delete edit().plex;
     persist();
   },
   getSilo(): SiloSettings | undefined {
     return load().silo;
   },
   setSilo(silo: SiloSettings) {
-    load().silo = silo;
+    edit().silo = silo;
     persist();
   },
   clearSilo() {
-    delete load().silo;
+    delete edit().silo;
     persist();
   },
   getEmby(): EmbySettings | undefined {
     return load().emby;
   },
   setEmby(emby: EmbySettings) {
-    load().emby = emby;
+    edit().emby = emby;
     persist();
   },
   clearEmby() {
-    delete load().emby;
+    delete edit().emby;
     persist();
   },
   getXtream(): XtreamSettings | undefined {
     return load().xtream;
   },
   setXtream(xtream: XtreamSettings) {
-    load().xtream = xtream;
+    edit().xtream = xtream;
     persist();
   },
   clearXtream() {
-    delete load().xtream;
+    delete edit().xtream;
     persist();
   },
   getTmdb(): TmdbSettings | undefined {
     return load().tmdb;
   },
   setTmdb(tmdb: TmdbSettings) {
-    load().tmdb = tmdb;
+    edit().tmdb = tmdb;
     persist();
   },
   clearTmdb() {
-    delete load().tmdb;
+    delete edit().tmdb;
     persist();
   },
   getTrakt(): TraktSettings | undefined {
     return load().trakt;
   },
   setTrakt(trakt: TraktSettings) {
-    load().trakt = trakt;
+    edit().trakt = trakt;
     persist();
   },
   updateTrakt(patch: Partial<TraktSettings>) {
-    const existing = load().trakt;
+    const existing = edit().trakt;
     if (!existing) return;
-    load().trakt = { ...existing, ...patch };
+    edit().trakt = { ...existing, ...patch };
     persist();
   },
   clearTrakt() {
-    delete load().trakt;
+    delete edit().trakt;
     persist();
   },
   status() {
@@ -158,6 +220,7 @@ export const settingsStore = {
       siloBaseUrl: s.silo?.baseUrl,
       embyBaseUrl: s.emby?.baseUrl,
       xtreamBaseUrl: s.xtream?.baseUrl,
+      readError,
     };
   },
 };

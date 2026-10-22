@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
@@ -29,7 +30,7 @@ process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection (server staying up):", reason);
 });
 
-export async function startServer() {
+export async function createApp() {
   const app = Fastify({ logger: true });
 
   await app.register(cors, { origin: true });
@@ -53,15 +54,22 @@ export async function startServer() {
   await app.register(sportsRoutes);
 
   const webDist = path.join(__dirname, "../../web/dist");
-  await app.register(fastifyStatic, { root: webDist, wildcard: false });
-  app.setNotFoundHandler((request, reply) => {
-    if (request.raw.url?.startsWith("/api")) {
-      reply.code(404).send({ error: "Not found" });
-      return;
-    }
-    reply.sendFile("index.html");
-  });
+  if (fs.existsSync(webDist)) {
+    await app.register(fastifyStatic, { root: webDist, wildcard: false });
+    app.setNotFoundHandler((request, reply) => {
+      if (request.raw.url?.startsWith("/api")) {
+        reply.code(404).send({ error: "Not found" });
+        return;
+      }
+      reply.sendFile("index.html");
+    });
+  }
 
+  return app;
+}
+
+export async function startServer() {
+  const app = await createApp();
   await app.listen({ port: config.port, host: "0.0.0.0" });
   return app;
 }

@@ -11,7 +11,8 @@
     "build:web": "npm run build --prefix web",
     "build": "npm run build:server && npm run build:web",
     "start": "npm run build && electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

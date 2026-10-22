@@ -39,6 +39,8 @@ export interface SettingsStatus {
   siloBaseUrl?: string;
   embyBaseUrl?: string;
   xtreamBaseUrl?: string;
+  /** Set when saved settings exist but could not be parsed. The file is left in place. */
+  readError?: string | null;
 }
 
 export interface PopularItem {
