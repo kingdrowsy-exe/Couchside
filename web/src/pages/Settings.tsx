@@ -22,6 +22,7 @@ import {
 } from "../api.js";
 import { EmbyIcon, PlexIcon, SiloIcon, TmdbIcon, TraktIcon, XtreamIcon } from "../components/ServiceIcons.js";
 import { settingsLoadView } from "./settingsLoad.js";
+import { appVersion } from "../version.js";
 import Icon from "../ui/Icon.js";
 
 type ServiceId = "plex" | "silo" | "emby" | "xtream" | "tmdb" | "trakt";
@@ -411,10 +412,11 @@ export default function Settings() {
     }
   }
 
-  if (settingsLoadView(status, loadError) !== "ready") {
+  const loadView = settingsLoadView(status, loadError);
+  if (loadView !== "ready" || !status) {
     return (
       <div className="page status">
-        {settingsLoadView(status, loadError) === "error" ? (
+        {loadView === "error" ? (
           <>
             <p>Couldn't load settings. {loadError}</p>
             <button type="button" onClick={refreshStatus}>
@@ -682,6 +684,7 @@ export default function Settings() {
     <div className="page st">
       <header className="st__head">
         <h1 className="h1">Settings</h1>
+        <p className="muted">Couchside {appVersion}</p>
         <p className="muted">
           {connectedCount} of 6 services connected
         </p>
