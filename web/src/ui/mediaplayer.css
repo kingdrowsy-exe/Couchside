@@ -92,6 +92,11 @@
 
 .mp__bigplay:hover {
   transform: scale(1.06);
+  background: var(--accent-hi);
+}
+
+.mp__bigplay:active {
+  background: var(--accent-press);
 }
 
 .mp__top,
@@ -215,6 +220,10 @@
 
 .mp__play:hover:not(:disabled) {
   background: var(--accent-hi) !important;
+}
+
+.mp__play:active:not(:disabled) {
+  background: var(--accent-press) !important;
 }
 
 .mp__time {

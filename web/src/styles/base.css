@@ -1,4 +1,4 @@
-/* Couchside design system. True black, charcoal surfaces, one orange accent (#ff6410) from the logo.
+/* Couchside design system. True black, charcoal surfaces, one purple accent (#6A2DFB) sampled from the wordmark.
    8px grid. Radii 12 (controls, cards) and 16 (panels). Left-aligned labels under every card. */
 
 :root {
@@ -9,9 +9,10 @@
   --hover: #2a2a2d;
   --text: #f5f5f7;
   --muted: #8e8e93;
-  --accent: #ff6410;
-  --accent-hi: #ff7d36;
-  --accent-ink: #140800;
+  --accent: #6a2dfb;
+  --accent-hi: #7c46fb;
+  --accent-press: #5926d3;
+  --accent-ink: #fff;
   --live: #ef4444;
   --ok: #34d399;
   --warn: #fbbf24;
@@ -164,6 +165,10 @@ p {
 
 .btn--primary:hover:not(:disabled) {
   background: var(--accent-hi);
+}
+
+.btn--primary:active:not(:disabled) {
+  background: var(--accent-press);
 }
 
 .btn--sm {
@@ -382,8 +387,8 @@ p {
 }
 
 .rail__brand img {
-  width: 40px;
-  height: 36px;
+  width: 48px;
+  height: 28px;
   object-fit: contain;
   flex: none;
 }

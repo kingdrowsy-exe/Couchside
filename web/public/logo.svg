@@ -1,16 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Couchside">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="365 390 680 412" role="img" aria-label="Couchside">
   <defs>
-    <mask id="play">
-      <rect width="32" height="32" fill="white"/>
-      <path fill="black" d="M12.2 9.2 L19.6 12.8 L12.2 16.4 Z"/>
+    <mask id="couch">
+      <rect x="459" y="400" width="492" height="236" rx="52" fill="#fff"/>
+      <rect x="375" y="508" width="140" height="236" rx="46" fill="#fff"/>
+      <rect x="893" y="508" width="142" height="236" rx="46" fill="#fff"/>
+      <rect x="415" y="652" width="578" height="92" rx="30" fill="#fff"/>
+      <rect x="456" y="746" width="54" height="46" rx="10" fill="#fff"/>
+      <rect x="898" y="746" width="54" height="46" rx="10" fill="#fff"/>
+      <path fill="#000" d="M652 448 L780 524 L652 600 Z"/>
     </mask>
   </defs>
-  <g fill="#ff6410" mask="url(#play)">
-    <path d="M6 6h20v10H6z"/>
-    <path d="M2 12h6v12H2z"/>
-    <path d="M24 12h6v12h-6z"/>
-    <path d="M4 16h24v8H4z"/>
-    <path d="M5 26h4v4H5z"/>
-    <path d="M23 26h4v4h-4z"/>
-  </g>
+  <rect x="365" y="390" width="680" height="412" fill="#fff" mask="url(#couch)"/>
 </svg>

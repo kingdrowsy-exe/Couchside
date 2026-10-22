@@ -1,6 +1,6 @@
 # Couchside
 
-![Couchside logo](build/logo.svg)
+![Couchside](build/logo-lockup.svg)
 
 Couchside 1.0.0 is an all-in-one Windows player for Plex, Silo, MediaHub, and Xtream IPTV. It is an Electron app: a small local server and its own window, installed with an NSIS installer. You sign in with your own accounts. Nothing is shared between installs.
 

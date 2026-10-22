@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="365 256 680 680" role="img" aria-label="Couchside">
+  <rect x="365" y="256" width="680" height="680" fill="#000"/>
+  <defs>
+    <mask id="couch">
+      <rect x="459" y="400" width="492" height="236" rx="52" fill="#fff"/>
+      <rect x="375" y="508" width="140" height="236" rx="46" fill="#fff"/>
+      <rect x="893" y="508" width="142" height="236" rx="46" fill="#fff"/>
+      <rect x="415" y="652" width="578" height="92" rx="30" fill="#fff"/>
+      <rect x="456" y="746" width="54" height="46" rx="10" fill="#fff"/>
+      <rect x="898" y="746" width="54" height="46" rx="10" fill="#fff"/>
+      <path fill="#000" d="M652 448 L780 524 L652 600 Z"/>
+    </mask>
+  </defs>
+  <rect x="365" y="390" width="680" height="412" fill="#fff" mask="url(#couch)"/>
+</svg>

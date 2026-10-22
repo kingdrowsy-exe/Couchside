@@ -1095,7 +1095,12 @@
 }
 
 .jump button:hover:not(:disabled) {
-  background: var(--accent);
+  background: var(--accent-hi);
+  color: var(--accent-ink);
+}
+
+.jump button:active:not(:disabled) {
+  background: var(--accent-press);
   color: var(--accent-ink);
 }
 
