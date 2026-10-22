@@ -11,6 +11,7 @@ import {
 } from "../clients/trakt.js";
 import { bustCache } from "../cache.js";
 import { listSections } from "../clients/plex.js";
+import { UnsafeUrlError, assertServerBaseUrl } from "../outboundUrl.js";
 
 interface PendingPin {
   id: number;
@@ -76,6 +77,12 @@ async function validateXtream(baseUrl: string, username: string, password: strin
   }
 }
 
+function loginError(err: unknown, fallback: string): string {
+  if (err instanceof UnsafeUrlError) return "That server URL is not allowed.";
+  if (err instanceof Error && !/https?:\/\//i.test(err.message) && !/password=/i.test(err.message)) return err.message;
+  return fallback;
+}
+
 async function validateTmdb(accessToken: string) {
   const res = await fetch("https://api.themoviedb.org/3/authentication", {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
@@ -100,11 +107,12 @@ export async function settingsRoutes(app: FastifyInstance) {
     if (!baseUrl || !username || !password) {
       return reply.code(400).send({ error: "baseUrl, username, and password are required" });
     }
-    const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+    let cleanBaseUrl: string;
     try {
+      cleanBaseUrl = assertServerBaseUrl(baseUrl);
       await validateSilo(cleanBaseUrl, username, password);
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message });
+      return reply.code(400).send({ error: loginError(err, "Silo login failed. Check the server URL and credentials.") });
     }
     settingsStore.setSilo({ baseUrl: cleanBaseUrl, username, password });
     resetSiloSession();
@@ -132,11 +140,12 @@ export async function settingsRoutes(app: FastifyInstance) {
     if (!baseUrl || !username || !password) {
       return reply.code(400).send({ error: "baseUrl, username, and password are required" });
     }
-    const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+    let cleanBaseUrl: string;
     try {
+      cleanBaseUrl = assertServerBaseUrl(baseUrl);
       await validateEmby(cleanBaseUrl, username, password);
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message });
+      return reply.code(400).send({ error: loginError(err, "Emby login failed. Check the server URL and credentials.") });
     }
     settingsStore.setEmby({ baseUrl: cleanBaseUrl, username, password });
     resetEmbySession();
@@ -164,11 +173,12 @@ export async function settingsRoutes(app: FastifyInstance) {
     if (!baseUrl || !username || !password) {
       return reply.code(400).send({ error: "baseUrl, username, and password are required" });
     }
-    const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+    let cleanBaseUrl: string;
     try {
+      cleanBaseUrl = assertServerBaseUrl(baseUrl);
       await validateXtream(cleanBaseUrl, username, password);
     } catch (err) {
-      return reply.code(400).send({ error: (err as Error).message });
+      return reply.code(400).send({ error: loginError(err, "Xtream login failed. Check the server URL and credentials.") });
     }
     settingsStore.setXtream({ baseUrl: cleanBaseUrl, username, password });
     bustCache("live:");

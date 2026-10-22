@@ -7,6 +7,8 @@ import { liveStreamUrl } from "../clients/xtream.js";
 import { audioNeedsTranscode, createTsAudioFilter } from "../tsAudioFilter.js";
 import { isAudioTranscodeAvailable, peekHead, transcodeAudioToAac } from "../audioTranscode.js";
 import { cachedChunk, dedupeLivePlaylist } from "../liveDedupe.js";
+import { hlsSignatureValid, signHlsPath } from "../hlsAuth.js";
+import { UnsafeUrlError, assertSafeOutboundUrl, fetchOutbound } from "../outboundUrl.js";
 
 // Enough of a segment's start to be sure of catching its PAT/PMT (they lead each segment).
 const PEEK_BYTES = 188 * 64;
@@ -22,13 +24,13 @@ function isPlaylist(contentType: string, url: string): boolean {
 // the browser. Playlists are rewritten so every segment/key/nested-playlist reference
 // routes back through this proxy too.
 function proxiedUrl(absolute: string): string {
-  return `/api/hls?u=${encodeURIComponent(absolute)}`;
+  return signHlsPath(absolute);
 }
 
 async function fetchChunk(url: string): Promise<Buffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`chunk ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+  const { response } = await fetchOutbound(url);
+  if (!response.ok) throw new Error(`chunk ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
 function rewritePlaylist(body: string, baseUrl: string): string {
@@ -108,7 +110,8 @@ async function proxyHlsResource(targetUrl: string, reply: FastifyReply, range?: 
     }
   }
 
-  const upstream = await fetch(targetUrl, range ? { headers: { range } } : undefined);
+  const fetched = await fetchOutbound(targetUrl, range ? { headers: { range } } : {});
+  const upstream = fetched.response;
   if (!upstream.ok && upstream.status !== 206) {
     return reply.code(502).send({ error: "Failed to reach stream" });
   }
@@ -117,7 +120,7 @@ async function proxyHlsResource(targetUrl: string, reply: FastifyReply, range?: 
 
   if (isPlaylist(contentType, targetUrl)) {
     // Xtream panels 302/301 the given URL on to the real CDN edge server, so relative
-    // segment paths in the playlist must resolve against upstream.url (post-redirect),
+    // segment paths in the playlist must resolve against the post-redirect URL,
     // not the original targetUrl - the origin domain often doesn't serve segments at all.
     const original = await upstream.text();
     // Repeated chunks are dropped when the playlist is a plain live one; otherwise (or on any trouble) it is
@@ -131,7 +134,7 @@ async function proxyHlsResource(targetUrl: string, reply: FastifyReply, range?: 
     } catch {
       prepared = null;
     }
-    const rewritten = monotonicPlaylist(targetUrl, prepared ?? rewritePlaylist(original, upstream.url), original);
+    const rewritten = monotonicPlaylist(targetUrl, prepared ?? rewritePlaylist(original, fetched.url), original);
     reply.header("content-type", "application/vnd.apple.mpegurl");
     reply.header("cache-control", "no-store");
     return reply.send(rewritten);
@@ -158,8 +161,14 @@ async function proxyHlsResource(targetUrl: string, reply: FastifyReply, range?: 
 
 export async function streamRoutes(app: FastifyInstance) {
   app.get("/api/hls", async (request, reply) => {
-    const { u } = request.query as { u?: string };
-    if (!u) return reply.code(400).send({ error: "Missing url" });
+    const { u, sig } = request.query as { u?: string; sig?: string };
+    if (!u || !hlsSignatureValid(u, sig)) return reply.code(403).send({ error: "forbidden" });
+    try {
+      assertSafeOutboundUrl(u);
+    } catch (err) {
+      if (err instanceof UnsafeUrlError) return reply.code(400).send({ error: "That URL is not allowed" });
+      throw err;
+    }
     return proxyHlsResource(u, reply, request.headers.range as string | undefined);
   });
 
@@ -180,20 +189,19 @@ export async function streamRoutes(app: FastifyInstance) {
       reply.raw.on("close", () => controller.abort());
 
       let { url, accessToken } = await resolveSiloStreamUrl(id);
-      let upstream = await fetch(url, {
-        headers: range ? { Authorization: `Bearer ${accessToken}`, Range: range } : { Authorization: `Bearer ${accessToken}` },
-        signal: controller.signal,
-      });
+      const siloHeaders = (token: string): Record<string, string> => {
+        const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+        if (range) headers.Range = range;
+        return headers;
+      };
+      let upstream = (await fetchOutbound(url, { headers: siloHeaders(accessToken), signal: controller.signal })).response;
 
       // The cached URL/session can go stale server-side before our own TTL does - if Silo
       // rejects it, drop the cache entry and resolve (and retry) exactly once more.
       if (upstream.status === 401 || upstream.status === 403) {
         invalidateSiloStreamUrl(id);
         ({ url, accessToken } = await resolveSiloStreamUrl(id));
-        upstream = await fetch(url, {
-          headers: range ? { Authorization: `Bearer ${accessToken}`, Range: range } : { Authorization: `Bearer ${accessToken}` },
-          signal: controller.signal,
-        });
+        upstream = (await fetchOutbound(url, { headers: siloHeaders(accessToken), signal: controller.signal })).response;
       }
 
       if ((!upstream.ok && upstream.status !== 206) || !upstream.body) {
@@ -215,12 +223,12 @@ export async function streamRoutes(app: FastifyInstance) {
 
     if (source === "live") {
       // See the comment on proxyHlsResource: live TV is HLS, played via hls.js, which
-      // needs CORS on every request - so it's proxied rather than redirected.
+      // fetches every segment itself - so it's proxied rather than redirected.
       return proxyHlsResource(liveStreamUrl(Number(id)), reply, request.headers.range as string | undefined);
     }
 
     if (source === "plex") {
-      const url = await resolvePlexStreamUrl(id);
+      const url = assertSafeOutboundUrl(await resolvePlexStreamUrl(id)).toString();
       return reply.code(302).redirect(url);
     }
 
@@ -228,7 +236,7 @@ export async function streamRoutes(app: FastifyInstance) {
       // Unlike Silo, Emby accepts its auth token as a plain URL query param and its
       // stream endpoint natively supports Range requests, so - like Plex - this can be a
       // redirect straight to Emby's own server instead of proxying through this one.
-      const url = await resolveEmbyStreamUrl(id);
+      const url = assertSafeOutboundUrl(await resolveEmbyStreamUrl(id)).toString();
       return reply.code(302).redirect(url);
     }
 

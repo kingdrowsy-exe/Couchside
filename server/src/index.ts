@@ -2,10 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
-import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { config } from "./config.js";
 import { NotConfiguredError } from "./settingsStore.js";
+import { UnsafeUrlError } from "./outboundUrl.js";
+import { CONTENT_SECURITY_POLICY, isLoopbackHost, redactSecrets, redactUrl } from "./requestGuards.js";
 import { onDemandRoutes } from "./routes/ondemand.js";
 import { liveRoutes } from "./routes/live.js";
 import { streamRoutes } from "./routes/stream.js";
@@ -24,24 +25,49 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Log it and keep serving instead - especially important here since a packaged desktop app
 // has no one watching a terminal to notice and restart it.
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught exception (server staying up):", err);
+  console.error("Uncaught exception (server staying up):", redactSecrets(err instanceof Error ? err.message : String(err)));
 });
 process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled rejection (server staying up):", reason);
+  const text = reason instanceof Error ? reason.message : String(reason);
+  console.error("Unhandled rejection (server staying up):", redactSecrets(text));
 });
 
 export async function createApp() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: {
+      serializers: {
+        req(request) {
+          return {
+            method: request.method,
+            url: redactUrl(request.url),
+            host: request.headers.host,
+            remoteAddress: request.ip,
+          };
+        },
+      },
+    },
+  });
 
-  await app.register(cors, { origin: true });
+  app.addHook("onRequest", async (request, reply) => {
+    if (!isLoopbackHost(request.headers.host)) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    reply.header("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("Referrer-Policy", "no-referrer");
+  });
 
   app.setErrorHandler((err: Error, request, reply) => {
     if (err instanceof NotConfiguredError) {
       reply.code(409).send({ error: "not_configured", service: err.service });
       return;
     }
-    request.log.error(err);
-    reply.code(500).send({ error: "internal_error", message: err.message });
+    if (err instanceof UnsafeUrlError) {
+      reply.code(400).send({ error: "That URL is not allowed" });
+      return;
+    }
+    request.log.error({ err: redactSecrets(err.message) }, "request failed");
+    reply.code(500).send({ error: "internal_error" });
   });
 
   await app.register(settingsRoutes);
@@ -70,7 +96,7 @@ export async function createApp() {
 
 export async function startServer() {
   const app = await createApp();
-  await app.listen({ port: config.port, host: "0.0.0.0" });
+  await app.listen({ port: config.port, host: "127.0.0.1" });
   return app;
 }
 

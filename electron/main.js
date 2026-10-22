@@ -1,7 +1,8 @@
-import { app, BrowserWindow, Menu, safeStorage, screen } from "electron";
+import { app, BrowserWindow, Menu, safeStorage, screen, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { legacyUserDataPath, migrateUserData } from "./migrateUserData.mjs";
+import { externalOpenAction, isAppNavigation } from "./navigation.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,6 +17,7 @@ migrateUserData(legacyUserDataPath(app.getPath("appData")), app.getPath("userDat
 // A fixed, uncommon port for the embedded server - distinct from the dev
 // project's 4000 so both can run side by side without colliding.
 const PORT = 4173;
+const APP_ORIGIN = `http://127.0.0.1:${PORT}`;
 process.env.PORT = String(PORT);
 
 // Route settings.json (Plex/Silo/Xtream/TMDB/Trakt credentials) to Electron's
@@ -49,9 +51,27 @@ async function createWindow() {
     backgroundColor: "#000000",
     autoHideMenuBar: true,
     icon: app.isPackaged ? path.join(process.resourcesPath, "icon.ico") : path.join(__dirname, "../build/icon.ico"),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      nodeIntegrationInSubFrames: false,
+    },
   });
 
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (externalOpenAction(url) === "external") void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  const stayInApp = (event, url) => {
+    if (!isAppNavigation(url, APP_ORIGIN)) event.preventDefault();
+  };
+  mainWindow.webContents.on("will-navigate", stayInApp);
+  mainWindow.webContents.on("will-redirect", stayInApp);
+
+  mainWindow.loadURL(APP_ORIGIN);
 
   // Electron's BrowserWindow has no built-in right-click menu (unlike a regular browser
   // window) - without this, right-clicking a text field like the Settings credential

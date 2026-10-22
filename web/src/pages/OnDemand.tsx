@@ -5,6 +5,7 @@ import Detail from "../ui/Detail.js";
 import Icon from "../ui/Icon.js";
 import PosterCard from "../ui/PosterCard.js";
 import Row from "../ui/Row.js";
+import { popularLoadView } from "./popularLoad.js";
 import "./ondemand.css";
 
 const SPOTLIGHT_COUNT = 6;
@@ -101,6 +102,8 @@ export default function OnDemand() {
   const [movies, setMovies] = useState<PopularItem[]>([]);
   const [shows, setShows] = useState<PopularItem[]>([]);
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [popularFailed, setPopularFailed] = useState(false);
+  const [popularAttempt, setPopularAttempt] = useState(0);
   const [watchlist, setWatchlist] = useState<PopularItem[]>([]);
   const [recommended, setRecommended] = useState<PopularItem[]>([]);
   const [selected, setSelected] = useState<PopularItem | null>(null);
@@ -109,20 +112,21 @@ export default function OnDemand() {
   const [ownedOnly, setOwnedOnly] = useState(false);
 
   useEffect(() => {
+    setPopularFailed(false);
     fetchPopular()
       .then((res) => {
         setMovies(res.movies);
         setShows(res.shows);
         setConfigured(res.configured);
       })
-      .catch(() => setConfigured(false));
+      .catch(() => setPopularFailed(true));
     fetchTraktWatchlist()
       .then((res) => setWatchlist(res.items))
       .catch(() => setWatchlist([]));
     fetchTraktRecommendations()
       .then((res) => setRecommended(res.items))
       .catch(() => setRecommended([]));
-  }, []);
+  }, [popularAttempt]);
 
   // "See all" asks for a larger, separately cached batch; show what is already loaded while it arrives.
   function openPopularGrid(type: "movie" | "show", title: string, fallback: PopularItem[]) {
@@ -203,7 +207,15 @@ export default function OnDemand() {
             </div>
           </div>
 
-          {configured === false && (
+          {popularLoadView(configured, popularFailed) === "error" && (
+            <div className="ondemand__notice notice">
+              Couldn't load On Demand.{" "}
+              <button type="button" className="btn btn--quiet btn--sm" onClick={() => setPopularAttempt((n) => n + 1)}>
+                Try again
+              </button>
+            </div>
+          )}
+          {popularLoadView(configured, popularFailed) === "unconfigured" && (
             <div className="ondemand__notice notice">
               TMDB isn't connected, so the popular shelves are empty. <Link to="/settings">Connect TMDB</Link>
             </div>
