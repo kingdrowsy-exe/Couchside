@@ -80,16 +80,28 @@ export async function createApp() {
   await app.register(sportsRoutes);
 
   const webDist = path.join(__dirname, "../../web/dist");
-  if (fs.existsSync(webDist)) {
-    await app.register(fastifyStatic, { root: webDist, wildcard: false });
+  const indexHtml = path.join(webDist, "index.html");
+  if (!fs.existsSync(indexHtml)) {
+    const message = `Web bundle missing at ${indexHtml}`;
+    app.log.error(message);
     app.setNotFoundHandler((request, reply) => {
       if (request.raw.url?.startsWith("/api")) {
         reply.code(404).send({ error: "Not found" });
         return;
       }
-      reply.sendFile("index.html");
+      reply.code(500).type("text/plain; charset=utf-8").send(message);
     });
+    return app;
   }
+
+  await app.register(fastifyStatic, { root: webDist, wildcard: false });
+  app.setNotFoundHandler((request, reply) => {
+    if (request.raw.url?.startsWith("/api")) {
+      reply.code(404).send({ error: "Not found" });
+      return;
+    }
+    reply.sendFile("index.html");
+  });
 
   return app;
 }

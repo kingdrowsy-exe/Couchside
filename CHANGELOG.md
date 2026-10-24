@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- The installed app serves the window again. 1.0.0's release build packaged the server and left out the web bundle, so the window showed Fastify's "Route GET:/ not found". The release workflow builds the UI before packaging and fails if `web/dist/index.html` is not in the package. A missing bundle is logged, and the window shows that message.
+
 ## 1.0.0
 
 - Couchside replaces Unified Media Hub. The app id is `com.kingdrowsy.couchside`, the window and shortcuts are named Couchside, and the installer is `Couchside-Setup-1.0.0.exe`.
